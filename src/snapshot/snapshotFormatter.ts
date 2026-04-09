@@ -1,45 +1,54 @@
-import type { Snapshot } from './envSnapshot';
+import { EnvSnapshot } from './envSnapshot';
 
-export function formatSnapshotHeader(snapshot: Snapshot): string {
-  return [
-    `Environment : ${snapshot.environment}`,
-    `File        : ${snapshot.filePath}`,
-    `Timestamp   : ${snapshot.timestamp}`,
-    `Checksum    : ${snapshot.checksum}`,
-  ].join('\n');
-}
-
-export function formatSnapshotValues(
-  snapshot: Snapshot,
-  mask: boolean = true
-): string {
-  const lines = Object.entries(snapshot.values).map(([key, value]) => {
-    const display = mask ? maskSnapshotValue(key, value) : value;
-    return `  ${key}=${display}`;
-  });
-  return lines.join('\n');
-}
+const SENSITIVE_KEY_PATTERNS = /password|secret|key|token|url|dsn|credential/i;
 
 export function maskSnapshotValue(key: string, value: string): string {
-  const sensitivePattern = /secret|password|token|key|pwd/i;
-  if (sensitivePattern.test(key)) {
-    return value.length > 0 ? '****' : '';
+  if (SENSITIVE_KEY_PATTERNS.test(key)) {
+    return '**********';
   }
   return value;
 }
 
-export function formatSnapshotSummary(snapshot: Snapshot): string {
+export function formatSnapshotHeader(snapshot: EnvSnapshot): string {
+  const lines = [
+    `Snapshot ID  : ${snapshot.id}`,
+    `Environment  : ${snapshot.environment}`,
+    `Timestamp    : ${snapshot.timestamp}`,
+    `Checksum     : ${snapshot.checksum}`,
+  ];
+  return lines.join('\n');
+}
+
+export function formatSnapshotValues(
+  values: Record<string, string>,
+  mask: boolean
+): string {
+  return Object.entries(values)
+    .map(([key, value]) => {
+      const displayValue = mask ? maskSnapshotValue(key, value) : value;
+      return `  ${key}=${displayValue}`;
+    })
+    .join('\n');
+}
+
+export function formatSnapshotSummary(snapshot: EnvSnapshot): string {
   const keyCount = Object.keys(snapshot.values).length;
   return [
     formatSnapshotHeader(snapshot),
-    `Keys        : ${keyCount}`,
+    `Keys         : ${keyCount}`,
   ].join('\n');
 }
 
-export function formatSnapshotFull(snapshot: Snapshot, mask: boolean = true): string {
+export function formatSnapshotFull(
+  snapshot: EnvSnapshot,
+  mask = true
+): string {
+  const separator = '-'.repeat(48);
   return [
+    separator,
     formatSnapshotHeader(snapshot),
-    '---',
-    formatSnapshotValues(snapshot, mask),
+    separator,
+    formatSnapshotValues(snapshot.values, mask),
+    separator,
   ].join('\n');
 }
