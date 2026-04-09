@@ -1,0 +1,8 @@
+node_modules/
+*~
+*.log
+coverage/
+.cache/
+build/
+*.js.map
+*.swo
