@@ -61,6 +61,13 @@ describe('injectEnv', () => {
     expect(result.injected).toHaveLength(1);
     expect(result.skipped).toHaveLength(1);
   });
+
+  it('returns empty result when given an empty env object', () => {
+    const result = injectEnv({});
+    expect(result.injected).toHaveLength(0);
+    expect(result.skipped).toHaveLength(0);
+    expect(result.total).toBe(0);
+  });
 });
 
 describe('ejectEnv', () => {
@@ -83,5 +90,10 @@ describe('ejectEnv', () => {
     expect(removed).toHaveLength(2);
     expect(process.env.KEY_A).toBeUndefined();
     expect(process.env.KEY_B).toBeUndefined();
+  });
+
+  it('returns empty array when given an empty keys list', () => {
+    const removed = ejectEnv([]);
+    expect(removed).toHaveLength(0);
   });
 });
