@@ -1,42 +1,46 @@
-import { LintResult, LintIssue, LintSeverity } from './envLinter';
+import { LintIssue, LintResult } from './envLinter';
 
-const SEVERITY_ICONS: Record<LintSeverity, string> = {
+const SEVERITY_SYMBOLS: Record<LintIssue['severity'], string> = {
   error: '✖',
   warning: '⚠',
   info: 'ℹ',
 };
 
-const SEVERITY_LABELS: Record<LintSeverity, string> = {
-  error: 'ERROR',
-  warning: 'WARN ',
-  info: 'INFO ',
+const SEVERITY_LABELS: Record<LintIssue['severity'], string> = {
+  error: 'error',
+  warning: 'warning',
+  info: 'info',
 };
 
 export function formatIssue(issue: LintIssue): string {
-  const icon = SEVERITY_ICONS[issue.severity];
+  const symbol = SEVERITY_SYMBOLS[issue.severity];
   const label = SEVERITY_LABELS[issue.severity];
-  return `  ${icon} [${label}] ${issue.key}: ${issue.message}`;
+  return `  ${symbol} [${label}] ${issue.key}: ${issue.message}`;
 }
 
-export function formatLintResult(result: LintResult, filePath?: string): string {
+export function formatLintResult(result: LintResult): string {
   const lines: string[] = [];
 
-  const header = filePath ? `Lint results for: ${filePath}` : 'Lint results';
-  lines.push(header);
-  lines.push('─'.repeat(50));
-
-  if (result.issues.length === 0) {
-    lines.push('  ✔ No issues found.');
-  } else {
-    for (const issue of result.issues) {
-      lines.push(formatIssue(issue));
-    }
+  if (result.passed) {
+    lines.push('✔ Lint passed — no issues found.');
+    return lines.join('\n');
   }
 
-  lines.push('─'.repeat(50));
+  const errors = result.issues.filter((i) => i.severity === 'error');
+  const warnings = result.issues.filter((i) => i.severity === 'warning');
+  const infos = result.issues.filter((i) => i.severity === 'info');
+
+  lines.push('Lint Issues:');
+  lines.push('');
+
+  for (const issue of result.issues) {
+    lines.push(formatIssue(issue));
+  }
+
+  lines.push('');
   lines.push(
-    `Summary: ${result.errorCount} error(s), ${result.warningCount} warning(s), ` +
-      `${result.issues.filter((i) => i.severity === 'info').length} info(s)`
+    `Summary: ${result.issues.length} issue(s) — ` +
+      `${errors.length} error(s), ${warnings.length} warning(s), ${infos.length} info(s)`
   );
 
   return lines.join('\n');
