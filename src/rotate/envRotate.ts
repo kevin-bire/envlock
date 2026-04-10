@@ -25,6 +25,10 @@ export async function rotateKey(
     return { key, rotated: false, error: 'Key not found or has no value' };
   }
 
+  if (!entry.value.startsWith('enc:')) {
+    return { key, rotated: false, error: 'Value is not encrypted' };
+  }
+
   try {
     const oldKey = await deriveKey(oldPassword);
     const decrypted = await decryptValue(entry.value, oldKey);
