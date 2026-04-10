@@ -34,6 +34,15 @@ describe('rotateKey', () => {
     expect(result.rotated).toBe(false);
     expect(result.error).toBeDefined();
   });
+
+  it('produces a value decryptable with the new password', async () => {
+    const env = await makeEncryptedEnv('old-pass');
+    await rotateKey(env, 'KEY_A', 'old-pass', 'new-pass');
+    const newKey = await deriveKey('new-pass');
+    const { decryptValue } = await import('../../encrypt/envEncrypt');
+    const decrypted = await decryptValue(env['KEY_A'].value, newKey);
+    expect(decrypted).toBe('secret_a');
+  });
 });
 
 describe('rotateEnv', () => {
