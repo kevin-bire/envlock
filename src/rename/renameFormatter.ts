@@ -32,7 +32,7 @@ export function formatRenameResult(result: RenameResult): string {
   }
 
   if (result.notFound.length > 0) {
-    lines.push(`\nNot Found:`);
+    lines.push(`\n${RED}Not Found:${RESET}`);
     result.notFound.forEach((op) => lines.push(formatOperation(op, 'notFound')));
   }
 
@@ -43,8 +43,16 @@ export function formatRenameSummary(result: RenameResult): string {
   const { renamed, skipped, notFound } = result;
   return [
     `${BOLD}Summary:${RESET}`,
-    `  ${GREEN}Renamed : ${renamed.length}${RESET}`,
-    `  ${YELLOW}Skipped : ${skipped.length}${RESET}`,
-    `  ${RED}Not Found: ${notFound.length}${RESET}`,
+    `  ${GREEN}Renamed   : ${renamed.length}${RESET}`,
+    `  ${YELLOW}Skipped   : ${skipped.length}${RESET}`,
+    `  ${RED}Not Found : ${notFound.length}${RESET}`,
   ].join('\n');
+}
+
+/**
+ * Returns a combined formatted string with both the full operation list
+ * and the summary, separated by a blank line.
+ */
+export function formatRenameReport(result: RenameResult): string {
+  return [formatRenameResult(result), '', formatRenameSummary(result)].join('\n');
 }
