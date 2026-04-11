@@ -24,6 +24,14 @@ describe('formatIssue', () => {
     expect(result).toContain('DEBUG');
     expect(result).toContain('info');
   });
+
+  it('returns a string for every severity level', () => {
+    const severities: LintIssue['severity'][] = ['error', 'warning', 'info'];
+    for (const severity of severities) {
+      const issue: LintIssue = { key: 'KEY', severity, message: 'some message' };
+      expect(typeof formatIssue(issue)).toBe('string');
+    }
+  });
 });
 
 describe('formatLintResult', () => {
@@ -60,5 +68,18 @@ describe('formatLintResult', () => {
     const output = formatLintResult(result);
     expect(output).toContain('2');
     expect(output).toContain('1');
+  });
+
+  it('includes each formatted issue in the output', () => {
+    const issues: LintIssue[] = [
+      { key: 'X', severity: 'error', message: 'bad value' },
+      { key: 'Y', severity: 'warning', message: 'odd pattern' },
+    ];
+    const result: LintResult = { issues, passed: false };
+    const output = formatLintResult(result);
+    for (const issue of issues) {
+      expect(output).toContain(issue.key);
+      expect(output).toContain(issue.message);
+    }
   });
 });
