@@ -1,59 +1,40 @@
-import type { DiffEntry, EnvDiffResult } from './envDiff';
+import { DiffEntry, DiffResult } from './envDiff';
 
-const COLORS = {
-  reset: '\x1b[0m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  gray: '\x1b[90m',
-  bold: '\x1b[1m',
-};
+const SENSITIVE_PATTERN = /secret|password|token|key|auth|pass|pwd/i;
 
-function maskValue(value: string, mask: boolean): string {
-  return mask ? '*'.repeat(Math.min(value.length, 8)) : value;
+export function maskValue(key: string, value: string | undefined): string {
+  if (!value) return '';
+  return SENSITIVE_PATTERN.test(key) ? '****' : value;
 }
 
-function formatEntry(entry: DiffEntry, maskValues: boolean): string {
-  const val = (v?: string) => maskValue(v ?? '', maskValues);
-
-  switch (entry.status) {
+export function formatEntry(entry: DiffEntry): string {
+  const { key, status, oldValue, newValue } = entry;
+  switch (status) {
     case 'added':
-      return `${COLORS.green}+ ${entry.key}=${val(entry.targetValue)}${COLORS.reset}`;
+      return `+ ${key}=${maskValue(key, newValue)}`;
     case 'removed':
-      return `${COLORS.red}- ${entry.key}=${val(entry.baseValue)}${COLORS.reset}`;
+      return `- ${key}=${maskValue(key, oldValue)}`;
     case 'changed':
-      return (
-        `${COLORS.yellow}~ ${entry.key}\n` +
-        `  base:   ${val(entry.baseValue)}\n` +
-        `  target: ${val(entry.targetValue)}${COLORS.reset}`
-      );
+      return `~ ${key}: ${maskValue(key, oldValue)} → ${maskValue(key, newValue)}`;
     case 'unchanged':
-      return `${COLORS.gray}  ${entry.key}=${val(entry.baseValue)}${COLORS.reset}`;
+      return `  ${key}=${maskValue(key, oldValue)}`;
+    default:
+      return `  ${key}`;
   }
 }
 
-export interface FormatOptions {
-  maskValues?: boolean;
-  showUnchanged?: boolean;
-}
-
-export function formatDiff(result: EnvDiffResult, options: FormatOptions = {}): string {
-  const { maskValues = false, showUnchanged = false } = options;
+export function formatDiff(result: DiffResult, showUnchanged = false): string {
   const lines: string[] = [];
 
-  if (!result.hasDifferences) {
-    return `${COLORS.bold}No differences found.${COLORS.reset}`;
+  for (const entry of result.entries) {
+    if (!showUnchanged && entry.status === 'unchanged') continue;
+    lines.push(formatEntry(entry));
   }
 
-  for (const entry of result.added) lines.push(formatEntry(entry, maskValues));
-  for (const entry of result.removed) lines.push(formatEntry(entry, maskValues));
-  for (const entry of result.changed) lines.push(formatEntry(entry, maskValues));
-  if (showUnchanged) {
-    for (const entry of result.unchanged) lines.push(formatEntry(entry, maskValues));
-  }
-
-  const summary = `\n${COLORS.bold}Summary: +${result.added.length} -${result.removed.length} ~${result.changed.length}${COLORS.reset}`;
-  lines.push(summary);
+  lines.push('');
+  lines.push(
+    `Summary: +${result.added} added, -${result.removed} removed, ~${result.changed} changed, ${result.unchanged} unchanged`
+  );
 
   return lines.join('\n');
 }

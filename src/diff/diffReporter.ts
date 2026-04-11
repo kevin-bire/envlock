@@ -1,78 +1,52 @@
-import { EnvDiff, DiffEntry } from './envDiff';
-import { formatDiff } from './diffFormatter';
-import { appendAuditLog } from '../audit/auditLog';
+import { DiffResult } from './envDiff';
 
-export interface ReportOptions {
-  auditPath?: string;
-  maskSecrets?: boolean;
-  outputFormat?: 'text' | 'json';
+export interface DiffSummary {
+  totalKeys: number;
+  added: number;
+  removed: number;
+  changed: number;
+  unchanged: number;
+  hasChanges: boolean;
 }
 
-export interface DiffReport {
-  summary: {
-    added: number;
-    removed: number;
-    changed: number;
-    total: number;
-  };
-  formatted: string;
-  timestamp: string;
-}
-
-export function buildSummary(diff: EnvDiff): DiffReport['summary'] {
+export function buildSummary(result: DiffResult): DiffSummary {
+  const totalKeys = result.entries.length;
   return {
-    added: diff.added.length,
-    removed: diff.removed.length,
-    changed: diff.changed.length,
-    total: diff.added.length + diff.removed.length + diff.changed.length,
+    totalKeys,
+    added: result.added,
+    removed: result.removed,
+    changed: result.changed,
+    unchanged: result.unchanged,
+    hasChanges: result.added > 0 || result.removed > 0 || result.changed > 0,
   };
 }
 
-export function generateReport(
-  diff: EnvDiff,
-  sourceLabel: string,
-  targetLabel: string,
-  options: ReportOptions = {}
-): DiffReport {
-  const { maskSecrets = true, outputFormat = 'text' } = options;
-  const summary = buildSummary(diff);
-  const timestamp = new Date().toISOString();
+export function generateReport(result: DiffResult, baseLabel = 'base', targetLabel = 'target'): string {
+  const summary = buildSummary(result);
+  const lines: string[] = [
+    `Diff Report: ${baseLabel} → ${targetLabel}`,
+    '─'.repeat(40),
+  ];
 
-  let formatted: string;
-
-  if (outputFormat === 'json') {
-    formatted = JSON.stringify({ sourceLabel, targetLabel, summary, diff, timestamp }, null, 2);
+  if (!summary.hasChanges) {
+    lines.push('No differences found.');
   } else {
-    const lines: string[] = [
-      `Diff Report: ${sourceLabel} → ${targetLabel}`,
-      `Generated: ${timestamp}`,
-      `─────────────────────────────────────`,
-      formatDiff(diff, maskSecrets),
-      `─────────────────────────────────────`,
-      `Summary: +${summary.added} added, -${summary.removed} removed, ~${summary.changed} changed`,
-    ];
-    formatted = lines.join('\n');
+    if (result.added > 0) {
+      lines.push(`Added (${result.added}):`);
+      result.entries.filter(e => e.status === 'added').forEach(e => lines.push(`  + ${e.key}`));
+    }
+    if (result.removed > 0) {
+      lines.push(`Removed (${result.removed}):`);
+      result.entries.filter(e => e.status === 'removed').forEach(e => lines.push(`  - ${e.key}`));
+    }
+    if (result.changed > 0) {
+      lines.push(`Changed (${result.changed}):`);
+      result.entries.filter(e => e.status === 'changed').forEach(e => lines.push(`  ~ ${e.key}`));
+    }
   }
 
-  return { summary, formatted, timestamp };
-}
+  lines.push('─'.repeat(40));
+  lines.push(`Total: ${summary.totalKeys} keys | +${summary.added} -${summary.removed} ~${summary.changed}`);
 
-export async function reportAndAudit(
-  diff: EnvDiff,
-  sourceLabel: string,
-  targetLabel: string,
-  options: ReportOptions = {}
-): Promise<DiffReport> {
-  const report = generateReport(diff, sourceLabel, targetLabel, options);
-
-  if (options.auditPath && report.summary.total > 0) {
-    const action = `diff:${sourceLabel}→${targetLabel} (+${report.summary.added}/-${report.summary.removed}/~${report.summary.changed})`;
-    await appendAuditLog(options.auditPath, {
-      action,
-      timestamp: report.timestamp,
-      details: report.summary,
-    });
-  }
-
-  return report;
+  return lines.join('\n');
 }

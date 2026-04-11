@@ -1,62 +1,72 @@
-import { formatDiff } from '../diffFormatter';
-import { diffEnvs } from '../envDiff';
+import { maskValue, formatEntry, formatDiff } from '../diffFormatter';
+import { DiffResult } from '../envDiff';
+
+describe('maskValue', () => {
+  it('masks sensitive keys', () => {
+    expect(maskValue('DB_PASSWORD', 'secret123')).toBe('****');
+    expect(maskValue('API_TOKEN', 'tok_abc')).toBe('****');
+    expect(maskValue('AUTH_KEY', 'xyz')).toBe('****');
+  });
+
+  it('does not mask non-sensitive keys', () => {
+    expect(maskValue('APP_NAME', 'myapp')).toBe('myapp');
+    expect(maskValue('PORT', '3000')).toBe('3000');
+  });
+
+  it('returns empty string for undefined value', () => {
+    expect(maskValue('KEY', undefined)).toBe('');
+  });
+});
+
+describe('formatEntry', () => {
+  it('formats added entry', () => {
+    const entry = { key: 'FOO', status: 'added' as const, newValue: 'bar' };
+    expect(formatEntry(entry)).toBe('+ FOO=bar');
+  });
+
+  it('formats removed entry', () => {
+    const entry = { key: 'FOO', status: 'removed' as const, oldValue: 'bar' };
+    expect(formatEntry(entry)).toBe('- FOO=bar');
+  });
+
+  it('formats changed entry', () => {
+    const entry = { key: 'FOO', status: 'changed' as const, oldValue: 'old', newValue: 'new' };
+    expect(formatEntry(entry)).toBe('~ FOO: old → new');
+  });
+
+  it('formats unchanged entry', () => {
+    const entry = { key: 'FOO', status: 'unchanged' as const, oldValue: 'val', newValue: 'val' };
+    expect(formatEntry(entry)).toBe('  FOO=val');
+  });
+});
 
 describe('formatDiff', () => {
-  const base = { APP: 'myapp', DB: 'localhost', SECRET: 'topsecret' };
-  const target = { APP: 'myapp', DB: 'prod.db', NEW_KEY: 'newval' };
+  const result: DiffResult = {
+    entries: [
+      { key: 'A', status: 'added', newValue: '1' },
+      { key: 'B', status: 'removed', oldValue: '2' },
+      { key: 'C', status: 'unchanged', oldValue: '3', newValue: '3' },
+    ],
+    added: 1,
+    removed: 1,
+    changed: 0,
+    unchanged: 1,
+  };
 
-  it('returns no-differences message for identical envs', () => {
-    const result = diffEnvs(base, base);
+  it('excludes unchanged by default', () => {
     const output = formatDiff(result);
-    expect(output).toContain('No differences found');
+    expect(output).not.toContain('  C=');
+    expect(output).toContain('+ A=1');
   });
 
-  it('includes added keys with + prefix', () => {
-    const result = diffEnvs(base, target);
-    const output = formatDiff(result);
-    expect(output).toContain('+ NEW_KEY=newval');
+  it('includes unchanged when flag is set', () => {
+    const output = formatDiff(result, true);
+    expect(output).toContain('  C=3');
   });
 
-  it('includes removed keys with - prefix', () => {
-    const result = diffEnvs(base, target);
-    const output = formatDiff(result);
-    expect(output).toContain('- SECRET=topsecret');
-  });
-
-  it('includes changed keys with ~ prefix', () => {
-    const result = diffEnvs(base, target);
-    const output = formatDiff(result);
-    expect(output).toContain('~ DB');
-    expect(output).toContain('localhost');
-    expect(output).toContain('prod.db');
-  });
-
-  it('masks values when maskValues is true', () => {
-    const result = diffEnvs(base, target);
-    const output = formatDiff(result, { maskValues: true });
-    expect(output).not.toContain('newval');
-    expect(output).not.toContain('topsecret');
-    expect(output).toContain('*');
-  });
-
-  it('shows unchanged keys when showUnchanged is true', () => {
-    const result = diffEnvs(base, target);
-    const output = formatDiff(result, { showUnchanged: true });
-    expect(output).toContain('APP=myapp');
-  });
-
-  it('hides unchanged keys by default', () => {
-    const result = diffEnvs(base, target);
-    const output = formatDiff(result);
-    expect(output).not.toContain('APP=myapp');
-  });
-
-  it('includes a summary line', () => {
-    const result = diffEnvs(base, target);
+  it('includes summary line', () => {
     const output = formatDiff(result);
     expect(output).toContain('Summary:');
-    expect(output).toContain('+1');
-    expect(output).toContain('-1');
-    expect(output).toContain('~1');
+    expect(output).toContain('+1 added');
   });
 });

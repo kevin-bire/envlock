@@ -1,57 +1,51 @@
 import { diffEnvs } from '../envDiff';
 
 describe('diffEnvs', () => {
-  const base = { APP_NAME: 'myapp', DB_HOST: 'localhost', SECRET: 'abc' };
-  const target = { APP_NAME: 'myapp', DB_HOST: 'production.db', API_KEY: 'xyz' };
-
   it('detects added keys', () => {
+    const base = { A: '1' };
+    const target = { A: '1', B: '2' };
     const result = diffEnvs(base, target);
-    expect(result.added).toHaveLength(1);
-    expect(result.added[0].key).toBe('API_KEY');
-    expect(result.added[0].targetValue).toBe('xyz');
+    expect(result.added).toBe(1);
+    expect(result.entries.find(e => e.key === 'B')?.status).toBe('added');
   });
 
   it('detects removed keys', () => {
+    const base = { A: '1', B: '2' };
+    const target = { A: '1' };
     const result = diffEnvs(base, target);
-    expect(result.removed).toHaveLength(1);
-    expect(result.removed[0].key).toBe('SECRET');
-    expect(result.removed[0].baseValue).toBe('abc');
+    expect(result.removed).toBe(1);
+    expect(result.entries.find(e => e.key === 'B')?.status).toBe('removed');
   });
 
   it('detects changed keys', () => {
+    const base = { A: 'old' };
+    const target = { A: 'new' };
     const result = diffEnvs(base, target);
-    expect(result.changed).toHaveLength(1);
-    expect(result.changed[0].key).toBe('DB_HOST');
-    expect(result.changed[0].baseValue).toBe('localhost');
-    expect(result.changed[0].targetValue).toBe('production.db');
+    expect(result.changed).toBe(1);
+    const entry = result.entries.find(e => e.key === 'A');
+    expect(entry?.oldValue).toBe('old');
+    expect(entry?.newValue).toBe('new');
   });
 
   it('detects unchanged keys', () => {
+    const base = { A: '1' };
+    const target = { A: '1' };
     const result = diffEnvs(base, target);
-    expect(result.unchanged).toHaveLength(1);
-    expect(result.unchanged[0].key).toBe('APP_NAME');
+    expect(result.unchanged).toBe(1);
+    expect(result.entries[0].status).toBe('unchanged');
   });
 
-  it('sets hasDifferences to true when diffs exist', () => {
+  it('handles empty envs', () => {
+    const result = diffEnvs({}, {});
+    expect(result.entries).toHaveLength(0);
+    expect(result.added).toBe(0);
+  });
+
+  it('returns sorted entries', () => {
+    const base = { Z: '1', A: '2' };
+    const target = { Z: '1', A: '2' };
     const result = diffEnvs(base, target);
-    expect(result.hasDifferences).toBe(true);
-  });
-
-  it('sets hasDifferences to false for identical envs', () => {
-    const result = diffEnvs(base, base);
-    expect(result.hasDifferences).toBe(false);
-    expect(result.unchanged).toHaveLength(3);
-  });
-
-  it('handles empty base', () => {
-    const result = diffEnvs({}, { KEY: 'val' });
-    expect(result.added).toHaveLength(1);
-    expect(result.removed).toHaveLength(0);
-  });
-
-  it('handles empty target', () => {
-    const result = diffEnvs({ KEY: 'val' }, {});
-    expect(result.removed).toHaveLength(1);
-    expect(result.added).toHaveLength(0);
+    expect(result.entries[0].key).toBe('A');
+    expect(result.entries[1].key).toBe('Z');
   });
 });
