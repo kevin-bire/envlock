@@ -40,6 +40,13 @@ describe('checkRequired', () => {
     expect(result.allSatisfied).toBe(true);
     expect(result.checks).toHaveLength(0);
   });
+
+  it('handles duplicate required keys without double-counting', () => {
+    const result = checkRequired(sampleEnv, ['DB_HOST', 'DB_HOST']);
+    expect(result.present).toEqual(['DB_HOST', 'DB_HOST']);
+    expect(result.checks).toHaveLength(2);
+    expect(result.allSatisfied).toBe(true);
+  });
 });
 
 describe('getMissingRequired', () => {
@@ -56,5 +63,10 @@ describe('getMissingRequired', () => {
   it('includes keys with empty values', () => {
     const missing = getMissingRequired(sampleEnv, ['EMPTY_KEY']);
     expect(missing).toContain('EMPTY_KEY');
+  });
+
+  it('returns empty array when required list is empty', () => {
+    const missing = getMissingRequired(sampleEnv, []);
+    expect(missing).toEqual([]);
   });
 });
