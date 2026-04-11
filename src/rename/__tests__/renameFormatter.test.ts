@@ -30,6 +30,12 @@ describe('formatOperation', () => {
     expect(line).toContain('✘');
     expect(line).toContain('not found');
   });
+
+  it('uses the provided key names in output', () => {
+    const line = formatOperation({ oldKey: 'FOO_BAR', newKey: 'BAZ_QUX' }, 'renamed');
+    expect(line).toContain('FOO_BAR');
+    expect(line).toContain('BAZ_QUX');
+  });
 });
 
 describe('formatRenameResult', () => {
@@ -58,6 +64,11 @@ describe('formatRenameResult', () => {
     expect(output).not.toContain('Renamed:');
     expect(output).not.toContain('Skipped:');
   });
+
+  it('returns a non-empty string for a fully populated result', () => {
+    const output = formatRenameResult(mockResult);
+    expect(output.trim().length).toBeGreaterThan(0);
+  });
 });
 
 describe('formatRenameSummary', () => {
@@ -66,5 +77,18 @@ describe('formatRenameSummary', () => {
     expect(output).toContain('Renamed : 1');
     expect(output).toContain('Skipped : 1');
     expect(output).toContain('Not Found: 1');
+  });
+
+  it('shows zero counts when result is empty', () => {
+    const emptyResult: RenameResult = {
+      renamed: [],
+      skipped: [],
+      notFound: [],
+      output: {},
+    };
+    const output = formatRenameSummary(emptyResult);
+    expect(output).toContain('Renamed : 0');
+    expect(output).toContain('Skipped : 0');
+    expect(output).toContain('Not Found: 0');
   });
 });
