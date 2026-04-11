@@ -8,14 +8,16 @@ const schema: EnvSchema = {
   APP_NAME: { type: 'string', required: false, pattern: '^[a-z-]+$' },
 };
 
+/** Minimal valid env satisfying all required schema fields. */
+const validEnv = {
+  DATABASE_URL: 'https://db.example.com',
+  PORT: '3000',
+  ADMIN_EMAIL: 'admin@example.com',
+};
+
 describe('validateEnv', () => {
   it('returns valid when all required fields are correct', () => {
-    const env = {
-      DATABASE_URL: 'https://db.example.com',
-      PORT: '3000',
-      ADMIN_EMAIL: 'admin@example.com',
-    };
-    const result = validateEnv(env, schema);
+    const result = validateEnv(validEnv, schema);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
@@ -43,20 +45,25 @@ describe('validateEnv', () => {
 
   it('reports error for pattern mismatch', () => {
     const env = {
-      DATABASE_URL: 'https://db.example.com',
-      PORT: '3000',
-      ADMIN_EMAIL: 'a@b.com',
+      ...validEnv,
       APP_NAME: 'My App 123',
     };
     const result = validateEnv(env, schema);
     expect(result.errors.some((e) => e.key === 'APP_NAME')).toBe(true);
   });
 
+  it('accepts valid pattern value for APP_NAME', () => {
+    const env = {
+      ...validEnv,
+      APP_NAME: 'my-app',
+    };
+    const result = validateEnv(env, schema);
+    expect(result.errors.some((e) => e.key === 'APP_NAME')).toBe(false);
+  });
+
   it('warns for optional missing fields and unknown fields', () => {
     const env = {
-      DATABASE_URL: 'https://db.example.com',
-      PORT: '3000',
-      ADMIN_EMAIL: 'a@b.com',
+      ...validEnv,
       UNKNOWN_KEY: 'value',
     };
     const result = validateEnv(env, schema);
