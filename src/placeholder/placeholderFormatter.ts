@@ -50,3 +50,11 @@ export function formatPlaceholderSummary(result: PlaceholderResult): string {
   ];
   return `Placeholder fill complete: ${parts.join(', ')}.`;
 }
+
+/**
+ * Returns true if the result contains any warnings or errors that the caller
+ * should surface to the user (i.e. skipped or missing entries exist).
+ */
+export function hasPlaceholderWarnings(result: PlaceholderResult): boolean {
+  return result.skipped.length > 0 || result.missing.length > 0;
+}
