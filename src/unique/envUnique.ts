@@ -1,34 +1,26 @@
-import { ParsedEnv } from '../parser/envParser';
-
-export interface UniqueResult {
-  unique: ParsedEnv;
-  duplicateValues: DuplicateValueEntry[];
-  totalKeys: number;
-  uniqueCount: number;
-  duplicateCount: number;
-}
-
-export interface DuplicateValueEntry {
-  value: string;
-  keys: string[];
-}
+import { EnvMap } from '../parser/envParser';
+import { UniqueResult } from './uniqueFormatter';
 
 /**
- * Finds keys that share the same value.
+ * Finds keys whose values are shared by more than one key.
+ * Returns a map of value -> list of keys that share it.
  */
-export function findDuplicateValues(env: ParsedEnv): DuplicateValueEntry[] {
-  const valueMap = new Map<string, string[]>();
+export function findDuplicateValues(
+  env: EnvMap
+): Record<string, string[]> {
+  const valueMap: Record<string, string[]> = {};
 
   for (const [key, value] of Object.entries(env)) {
-    const existing = valueMap.get(value) ?? [];
-    existing.push(key);
-    valueMap.set(value, existing);
+    if (!valueMap[value]) {
+      valueMap[value] = [];
+    }
+    valueMap[value].push(key);
   }
 
-  const duplicates: DuplicateValueEntry[] = [];
-  for (const [value, keys] of valueMap.entries()) {
+  const duplicates: Record<string, string[]> = {};
+  for (const [value, keys] of Object.entries(valueMap)) {
     if (keys.length > 1) {
-      duplicates.push({ value, keys });
+      duplicates[value] = keys;
     }
   }
 
@@ -36,24 +28,25 @@ export function findDuplicateValues(env: ParsedEnv): DuplicateValueEntry[] {
 }
 
 /**
- * Returns only keys with unique values (no other key shares the same value).
+ * Returns a new EnvMap keeping only the first occurrence of each unique value.
+ * Keys are processed in insertion order.
  */
-export function uniqueEnv(env: ParsedEnv): UniqueResult {
-  const duplicates = findDuplicateValues(env);
-  const duplicateKeys = new Set(duplicates.flatMap((d) => d.keys.slice(1)));
+export function uniqueEnv(env: EnvMap): UniqueResult {
+  const seen = new Set<string>();
+  const unique: EnvMap = {};
 
-  const unique: ParsedEnv = {};
   for (const [key, value] of Object.entries(env)) {
-    if (!duplicateKeys.has(key)) {
+    if (!seen.has(value)) {
+      seen.add(value);
       unique[key] = value;
     }
   }
 
+  const duplicateValues = findDuplicateValues(env);
+
   return {
+    original: env,
     unique,
-    duplicateValues: duplicates,
-    totalKeys: Object.keys(env).length,
-    uniqueCount: Object.keys(unique).length,
-    duplicateCount: duplicateKeys.size,
+    duplicateValues,
   };
 }

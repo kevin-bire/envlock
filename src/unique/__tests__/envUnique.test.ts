@@ -1,59 +1,68 @@
 import { findDuplicateValues, uniqueEnv } from '../envUnique';
 
 describe('findDuplicateValues', () => {
-  it('returns empty array when no duplicate values exist', () => {
+  it('returns empty object when no duplicates', () => {
     const env = { A: 'foo', B: 'bar', C: 'baz' };
-    expect(findDuplicateValues(env)).toEqual([]);
+    expect(findDuplicateValues(env)).toEqual({});
   });
 
-  it('detects keys sharing the same value', () => {
-    const env = { A: 'same', B: 'same', C: 'other' };
+  it('detects a single duplicate value', () => {
+    const env = { A: 'hello', B: 'hello', C: 'world' };
     const result = findDuplicateValues(env);
-    expect(result).toHaveLength(1);
-    expect(result[0].value).toBe('same');
-    expect(result[0].keys).toEqual(expect.arrayContaining(['A', 'B']));
+    expect(result['hello']).toEqual(['A', 'B']);
+    expect(result['world']).toBeUndefined();
   });
 
-  it('handles multiple groups of duplicate values', () => {
-    const env = { A: 'x', B: 'x', C: 'y', D: 'y' };
+  it('detects multiple duplicate values', () => {
+    const env = { A: 'x', B: 'x', C: 'y', D: 'y', E: 'z' };
     const result = findDuplicateValues(env);
-    expect(result).toHaveLength(2);
+    expect(result['x']).toEqual(['A', 'B']);
+    expect(result['y']).toEqual(['C', 'D']);
+    expect(result['z']).toBeUndefined();
   });
 
-  it('returns empty array for empty env', () => {
-    expect(findDuplicateValues({})).toEqual([]);
+  it('handles three keys sharing the same value', () => {
+    const env = { A: 'same', B: 'same', C: 'same' };
+    const result = findDuplicateValues(env);
+    expect(result['same']).toEqual(['A', 'B', 'C']);
+  });
+
+  it('handles empty env', () => {
+    expect(findDuplicateValues({})).toEqual({});
   });
 });
 
 describe('uniqueEnv', () => {
-  it('returns all keys when all values are unique', () => {
+  it('keeps all keys when all values are unique', () => {
     const env = { A: '1', B: '2', C: '3' };
     const result = uniqueEnv(env);
-    expect(result.uniqueCount).toBe(3);
-    expect(result.duplicateCount).toBe(0);
-    expect(result.duplicateValues).toHaveLength(0);
+    expect(result.unique).toEqual(env);
+    expect(result.duplicateValues).toEqual({});
   });
 
-  it('excludes duplicate-value keys beyond the first occurrence', () => {
-    const env = { A: 'shared', B: 'shared', C: 'unique' };
+  it('removes second occurrence of duplicate value', () => {
+    const env = { A: 'hello', B: 'hello', C: 'world' };
     const result = uniqueEnv(env);
-    expect(result.totalKeys).toBe(3);
-    expect(result.duplicateCount).toBe(1);
-    expect(result.uniqueCount).toBe(2);
-    expect(result.unique).toHaveProperty('C', 'unique');
+    expect(result.unique).toEqual({ A: 'hello', C: 'world' });
+    expect(Object.keys(result.unique)).not.toContain('B');
   });
 
-  it('reports correct totals for empty env', () => {
+  it('preserves first key when multiple keys share a value', () => {
+    const env = { X: 'dup', Y: 'dup', Z: 'dup' };
+    const result = uniqueEnv(env);
+    expect(Object.keys(result.unique)).toEqual(['X']);
+    expect(result.unique['X']).toBe('dup');
+  });
+
+  it('returns original env reference', () => {
+    const env = { A: 'v1' };
+    const result = uniqueEnv(env);
+    expect(result.original).toBe(env);
+  });
+
+  it('handles empty env', () => {
     const result = uniqueEnv({});
-    expect(result.totalKeys).toBe(0);
-    expect(result.uniqueCount).toBe(0);
-    expect(result.duplicateCount).toBe(0);
-  });
-
-  it('keeps first key of duplicate group in unique result', () => {
-    const env = { FIRST: 'val', SECOND: 'val', THIRD: 'other' };
-    const result = uniqueEnv(env);
-    expect(Object.keys(result.unique)).toContain('FIRST');
-    expect(Object.keys(result.unique)).not.toContain('SECOND');
+    expect(result.unique).toEqual({});
+    expect(result.duplicateValues).toEqual({});
   });
 });
