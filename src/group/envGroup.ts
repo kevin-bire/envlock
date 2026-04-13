@@ -63,3 +63,17 @@ export function filterGroups(
     totalGroups: Object.keys(filtered).length,
   };
 }
+
+/**
+ * Merges all groups and ungrouped entries from a GroupResult back into
+ * a flat key-value record.
+ */
+export function flattenGroupResult(result: GroupResult): Record<string, string> {
+  const flat: Record<string, string> = { ...result.ungrouped };
+
+  for (const groupEntries of Object.values(result.groups)) {
+    Object.assign(flat, groupEntries);
+  }
+
+  return flat;
+}
