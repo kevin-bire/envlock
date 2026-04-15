@@ -1,62 +1,66 @@
-import { FreezeResult, DriftResult, DriftEntry } from './envFreeze';
+export interface FreezeResult {
+  frozen: string[];
+  skipped: string[];
+}
 
-const RESET = '\x1b[0m';
-const GREEN = '\x1b[32m';
-const YELLOW = '\x1b[33m';
-const RED = '\x1b[31m';
-const CYAN = '\x1b[36m';
-const DIM = '\x1b[2m';
+export interface DriftEntry {
+  key: string;
+  expected: string;
+  actual: string;
+  masked?: boolean;
+}
+
+const MASK = '***';
 
 export function formatFreezeResult(result: FreezeResult): string {
   const lines: string[] = [];
 
-  for (const entry of result.frozen) {
-    lines.push(`  ${GREEN}❄ ${entry.key}${RESET} = ${DIM}${entry.value}${RESET}`);
+  if (result.frozen.length === 0 && result.skipped.length === 0) {
+    return 'No keys frozen.';
   }
 
-  for (const key of result.skipped) {
-    lines.push(`  ${YELLOW}⚠ ${key}${RESET} ${DIM}(not found, skipped)${RESET}`);
+  if (result.frozen.length > 0) {
+    lines.push('Frozen keys:');
+    for (const key of result.frozen) {
+      lines.push(`  + ${key} (frozen)`);
+    }
+  }
+
+  if (result.skipped.length > 0) {
+    lines.push('Skipped keys (already frozen):');
+    for (const key of result.skipped) {
+      lines.push(`  ~ ${key} (skipped)`);
+    }
   }
 
   return lines.join('\n');
 }
 
 export function formatFreezeSummary(result: FreezeResult): string {
-  const parts: string[] = [];
-  if (result.frozenCount > 0)
-    parts.push(`${GREEN}${result.frozenCount} frozen${RESET}`);
-  if (result.skippedCount > 0)
-    parts.push(`${YELLOW}${result.skippedCount} skipped${RESET}`);
-  return `Freeze complete: ${parts.join(', ')}`;
+  return `Freeze complete: ${result.frozen.length} frozen, ${result.skipped.length} skipped.`;
 }
 
 export function formatDriftEntry(entry: DriftEntry): string {
-  if (entry.currentValue === undefined) {
-    return `  ${RED}✗ ${entry.key}${RESET} ${DIM}(missing — was "${entry.frozenValue}")${RESET}`;
-  }
-  if (entry.drifted) {
-    return (
-      `  ${RED}~ ${entry.key}${RESET}\n` +
-      `    ${DIM}frozen:  ${entry.frozenValue}${RESET}\n` +
-      `    ${CYAN}current: ${entry.currentValue}${RESET}`
-    );
-  }
-  return `  ${GREEN}✓ ${entry.key}${RESET} ${DIM}(unchanged)${RESET}`;
+  const expected = entry.masked ? MASK : entry.expected;
+  const actual = entry.masked ? MASK : entry.actual;
+  return `  ${entry.key}: expected "${expected}" → got "${actual}"`;
 }
 
-export function formatDriftResult(result: DriftResult): string {
-  const lines = result.entries.map(formatDriftEntry);
+export function formatDriftResult(drifts: DriftEntry[]): string {
+  if (drifts.length === 0) {
+    return 'No drift detected. All frozen keys match.';
+  }
+
+  const lines: string[] = ['Drift detected in frozen keys:'];
+  for (const drift of drifts) {
+    lines.push(formatDriftEntry(drift));
+  }
   return lines.join('\n');
 }
 
-export function formatDriftSummary(result: DriftResult): string {
-  if (result.clean) {
-    return `${GREEN}✓ No drift detected. All frozen keys match.${RESET}`;
+export function formatDriftSummary(drifts: DriftEntry[]): string {
+  if (drifts.length === 0) {
+    return 'Drift summary: no drift found.';
   }
-  const parts: string[] = [];
-  if (result.driftedCount > 0)
-    parts.push(`${RED}${result.driftedCount} drifted${RESET}`);
-  if (result.missingCount > 0)
-    parts.push(`${RED}${result.missingCount} missing${RESET}`);
-  return `${RED}✗ Drift detected:${RESET} ${parts.join(', ')}`;
+  return `Drift summary: ${drifts.length} key(s) have drifted from frozen values.`;
 }
