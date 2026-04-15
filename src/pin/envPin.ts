@@ -25,7 +25,11 @@ export function loadPinStore(pinFile: string): PinStore {
     return { version: 1, entries: [] };
   }
   const raw = fs.readFileSync(pinFile, 'utf-8');
-  return JSON.parse(raw) as PinStore;
+  try {
+    return JSON.parse(raw) as PinStore;
+  } catch (err) {
+    throw new Error(`Failed to parse pin store at "${pinFile}": ${(err as Error).message}`);
+  }
 }
 
 export function savePinStore(pinFile: string, store: PinStore): void {
