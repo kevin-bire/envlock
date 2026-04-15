@@ -64,3 +64,28 @@ export function resolveEnvFiles(
 
   return { resolved, sources, missing, conflicts };
 }
+
+/**
+ * Filters a ResolveResult down to only the keys present in the provided list.
+ * Useful for extracting a known subset of variables from a broader resolved environment.
+ */
+export function pickResolved(
+  result: ResolveResult,
+  keys: string[]
+): ResolveResult {
+  const keySet = new Set(keys);
+  const resolved: Record<string, string> = {};
+  const sources: Record<string, 'file' | 'override' | 'process'> = {};
+
+  for (const key of keySet) {
+    if (key in result.resolved) {
+      resolved[key] = result.resolved[key];
+      sources[key] = result.sources[key];
+    }
+  }
+
+  const missing = keys.filter((k) => !(k in resolved));
+  const conflicts = result.conflicts.filter((c) => keySet.has(c.key));
+
+  return { resolved, sources, missing, conflicts };
+}
