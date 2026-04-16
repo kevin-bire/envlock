@@ -88,3 +88,11 @@ export function getEnvStatus(filePath: string): EnvStatusResult {
     entries,
   };
 }
+
+/**
+ * Returns only the entries with empty values from an EnvStatusResult.
+ * Useful for quickly identifying missing configuration values.
+ */
+export function getMissingEntries(result: EnvStatusResult): EnvStatusEntry[] {
+  return result.entries.filter((e) => e.isEmpty);
+}
