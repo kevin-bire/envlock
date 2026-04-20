@@ -63,6 +63,17 @@ describe('formatPlaceholderResult', () => {
     expect(output).not.toContain('Skipped');
     expect(output).not.toContain('Missing');
   });
+
+  it('returns an empty string when all sections are empty', () => {
+    const result: PlaceholderResult = {
+      filled: {},
+      replaced: [],
+      skipped: [],
+      missing: [],
+    };
+    const output = formatPlaceholderResult(result, {});
+    expect(output.trim()).toBe('');
+  });
 });
 
 describe('formatPlaceholderSummary', () => {
@@ -77,5 +88,18 @@ describe('formatPlaceholderSummary', () => {
     expect(summary).toContain('2 replaced');
     expect(summary).toContain('1 skipped');
     expect(summary).toContain('1 missing');
+  });
+
+  it('returns a summary line with zero counts when result is empty', () => {
+    const result: PlaceholderResult = {
+      filled: {},
+      replaced: [],
+      skipped: [],
+      missing: [],
+    };
+    const summary = formatPlaceholderSummary(result);
+    expect(summary).toContain('0 replaced');
+    expect(summary).toContain('0 skipped');
+    expect(summary).toContain('0 missing');
   });
 });
