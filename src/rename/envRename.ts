@@ -15,56 +15,59 @@ export interface RenameResult {
   skipped: number;
 }
 
-export function buildRenameMap(pairs: string[]): Map<string, string> {
+export function buildRenameMap(
+  raw: Record<string, string>
+): Map<string, string> {
   const map = new Map<string, string>();
-  for (const pair of pairs) {
-    const idx = pair.indexOf(':');
-    if (idx === -1) {
-      throw new Error(`Invalid rename pair "${pair}": expected format OLD:NEW`);
+  for (const [from, to] of Object.entries(raw)) {
+    if (from && to && from !== to) {
+      map.set(from, to);
     }
-    const from = pair.slice(0, idx).trim();
-    const to = pair.slice(idx + 1).trim();
-    if (!from || !to) {
-      throw new Error(`Invalid rename pair "${pair}": both sides must be non-empty`);
-    }
-    map.set(from, to);
   }
   return map;
 }
 
 export function renameKeys(
   env: EnvMap,
-  renameMap: Map<string, string>,
-  overwrite = false
+  renameMap: Map<string, string>
 ): RenameResult {
   const result: EnvMap = { ...env };
   const operations: RenameOperation[] = [];
+  let renamed = 0;
+  let skipped = 0;
 
   for (const [from, to] of renameMap.entries()) {
     if (!(from in env)) {
-      operations.push({ from, to, value: '', skipped: true, reason: 'key not found' });
+      operations.push({
+        from,
+        to,
+        value: '',
+        skipped: true,
+        reason: `Key "${from}" not found`,
+      });
+      skipped++;
       continue;
     }
 
-    if (to in result && !overwrite) {
+    if (to in result && to !== from) {
       operations.push({
         from,
         to,
         value: env[from],
         skipped: true,
-        reason: `target key "${to}" already exists`,
+        reason: `Target key "${to}" already exists`,
       });
+      skipped++;
       continue;
     }
 
     const value = result[from];
     delete result[from];
     result[to] = value;
-    operations.push({ from, to, value, skipped: false });
-  }
 
-  const renamed = operations.filter((o) => !o.skipped).length;
-  const skipped = operations.filter((o) => o.skipped).length;
+    operations.push({ from, to, value, skipped: false });
+    renamed++;
+  }
 
   return { env: result, operations, renamed, skipped };
 }

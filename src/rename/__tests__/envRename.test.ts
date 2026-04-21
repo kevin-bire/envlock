@@ -1,68 +1,69 @@
-import { renameKeys, buildRenameMap, RenameResult } from '../envRename';
-import { EnvMap } from '../../parser/envParser';
+import { buildRenameMap, renameKeys } from '../envRename';
 
 describe('buildRenameMap', () => {
-  it('parses valid pairs', () => {
-    const map = buildRenameMap(['OLD_KEY:NEW_KEY', 'FOO:BAR']);
+  it('creates a map from a plain object', () => {
+    const map = buildRenameMap({ OLD_KEY: 'NEW_KEY', FOO: 'BAR' });
     expect(map.get('OLD_KEY')).toBe('NEW_KEY');
     expect(map.get('FOO')).toBe('BAR');
   });
 
-  it('throws on missing colon', () => {
-    expect(() => buildRenameMap(['BADPAIR'])).toThrow('Invalid rename pair');
+  it('ignores entries where from equals to', () => {
+    const map = buildRenameMap({ SAME: 'SAME' });
+    expect(map.has('SAME')).toBe(false);
   });
 
-  it('throws on empty side', () => {
-    expect(() => buildRenameMap([':NEW'])).toThrow('Invalid rename pair');
-    expect(() => buildRenameMap(['OLD:'])).toThrow('Invalid rename pair');
+  it('ignores entries with empty keys', () => {
+    const map = buildRenameMap({ '': 'DEST' });
+    expect(map.size).toBe(0);
   });
 });
 
 describe('renameKeys', () => {
-  const env: EnvMap = { FOO: 'foo_val', BAR: 'bar_val', KEEP: 'keep_val' };
+  const env = { OLD_KEY: 'value1', FOO: 'bar', KEEP: 'keep' };
 
   it('renames existing keys', () => {
-    const map = new Map([['FOO', 'FOO_RENAMED']]);
-    const result: RenameResult = renameKeys(env, map);
-    expect(result.env['FOO_RENAMED']).toBe('foo_val');
-    expect(result.env['FOO']).toBeUndefined();
+    const map = buildRenameMap({ OLD_KEY: 'NEW_KEY' });
+    const result = renameKeys(env, map);
+    expect(result.env).toHaveProperty('NEW_KEY', 'value1');
+    expect(result.env).not.toHaveProperty('OLD_KEY');
     expect(result.renamed).toBe(1);
     expect(result.skipped).toBe(0);
   });
 
-  it('skips missing source keys', () => {
-    const map = new Map([['MISSING', 'TARGET']]);
+  it('skips when source key does not exist', () => {
+    const map = buildRenameMap({ MISSING: 'TARGET' });
     const result = renameKeys(env, map);
     expect(result.skipped).toBe(1);
-    expect(result.operations[0].reason).toBe('key not found');
+    expect(result.operations[0].reason).toMatch(/not found/);
   });
 
-  it('skips if target key exists and overwrite is false', () => {
-    const map = new Map([['FOO', 'BAR']]);
-    const result = renameKeys(env, map, false);
-    expect(result.skipped).toBe(1);
-    expect(result.operations[0].reason).toContain('already exists');
-  });
-
-  it('overwrites target key when overwrite is true', () => {
-    const map = new Map([['FOO', 'BAR']]);
-    const result = renameKeys(env, map, true);
-    expect(result.env['BAR']).toBe('foo_val');
-    expect(result.renamed).toBe(1);
-  });
-
-  it('preserves unaffected keys', () => {
-    const map = new Map([['FOO', 'FOO2']]);
+  it('skips when target key already exists', () => {
+    const map = buildRenameMap({ FOO: 'KEEP' });
     const result = renameKeys(env, map);
-    expect(result.env['KEEP']).toBe('keep_val');
-    expect(result.env['BAR']).toBe('bar_val');
+    expect(result.skipped).toBe(1);
+    expect(result.operations[0].reason).toMatch(/already exists/);
+    expect(result.env).toHaveProperty('FOO', 'bar');
   });
 
-  it('handles multiple renames', () => {
-    const map = new Map([['FOO', 'FOO2'], ['BAR', 'BAR2']]);
+  it('preserves unrelated keys', () => {
+    const map = buildRenameMap({ OLD_KEY: 'NEW_KEY' });
+    const result = renameKeys(env, map);
+    expect(result.env).toHaveProperty('FOO', 'bar');
+    expect(result.env).toHaveProperty('KEEP', 'keep');
+  });
+
+  it('handles multiple renames in one pass', () => {
+    const map = buildRenameMap({ OLD_KEY: 'NEW_KEY', FOO: 'BAZ' });
     const result = renameKeys(env, map);
     expect(result.renamed).toBe(2);
-    expect(result.env['FOO2']).toBe('foo_val');
-    expect(result.env['BAR2']).toBe('bar_val');
+    expect(result.env).toHaveProperty('NEW_KEY');
+    expect(result.env).toHaveProperty('BAZ');
+  });
+
+  it('returns empty env when input is empty', () => {
+    const map = buildRenameMap({ OLD_KEY: 'NEW_KEY' });
+    const result = renameKeys({}, map);
+    expect(result.env).toEqual({});
+    expect(result.skipped).toBe(1);
   });
 });
