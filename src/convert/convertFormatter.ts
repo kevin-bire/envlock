@@ -21,9 +21,10 @@ export function formatConvertResult(
   lines.push(header);
 
   if (preview) {
-    const previewLines = result.output.split('\n').slice(0, 5);
+    const outputLines = result.output.split('\n');
+    const previewLines = outputLines.slice(0, 5);
     lines.push(...previewLines);
-    if (result.output.split('\n').length > 5) {
+    if (outputLines.length > 5) {
       lines.push('  ... (truncated)');
     }
   } else {
@@ -35,4 +36,22 @@ export function formatConvertResult(
 
 export function formatSupportedFormats(formats: ConvertFormat[]): string {
   return `Supported formats: ${formats.map(f => f.toUpperCase()).join(', ')}`;
+}
+
+/**
+ * Formats a diff-style summary comparing two conversion results,
+ * useful for showing what changed when re-converting with a different format.
+ */
+export function formatConvertComparison(
+  before: ConvertResult,
+  after: ConvertResult
+): string {
+  const lines: string[] = [];
+  lines.push(`Format: ${before.format.toUpperCase()} → ${after.format.toUpperCase()}`);
+  lines.push(`Keys:   ${before.keyCount} → ${after.keyCount}`);
+  if (before.keyCount !== after.keyCount) {
+    const delta = after.keyCount - before.keyCount;
+    lines.push(`  (${delta > 0 ? '+' : ''}${delta} key(s))`);
+  }
+  return lines.join('\n');
 }
