@@ -38,3 +38,11 @@ export function formatDiff(result: DiffResult, showUnchanged = false): string {
 
   return lines.join('\n');
 }
+
+/**
+ * Returns true if the diff result contains any meaningful changes
+ * (i.e. at least one added, removed, or changed entry).
+ */
+export function hasChanges(result: DiffResult): boolean {
+  return result.added > 0 || result.removed > 0 || result.changed > 0;
+}
