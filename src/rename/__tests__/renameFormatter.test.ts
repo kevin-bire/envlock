@@ -1,94 +1,97 @@
-import { formatOperation, formatRenameResult, formatRenameSummary } from '../renameFormatter';
-import { RenameResult } from '../envRename';
+import {
+  formatOperation,
+  formatRenameResult,
+  formatRenameSummary,
+  formatRenameReport,
+  RenameOperation,
+  RenameResult,
+} from '../renameFormatter';
 
-const mockResult: RenameResult = {
-  renamed: [{ oldKey: 'OLD_KEY', newKey: 'NEW_KEY' }],
-  skipped: [{ oldKey: 'SKIP_KEY', newKey: 'TAKEN_KEY' }],
-  notFound: [{ oldKey: 'GHOST_KEY', newKey: 'WHATEVER' }],
-  output: { NEW_KEY: 'value', TAKEN_KEY: 'other' },
-};
+const makeResult = (overrides: Partial<RenameResult> = {}): RenameResult => ({
+  operations: [],
+  renamed: {},
+  skipped: [],
+  ...overrides,
+});
 
 describe('formatOperation', () => {
-  it('includes arrow notation', () => {
-    const line = formatOperation({ oldKey: 'A', newKey: 'B' }, 'renamed');
-    expect(line).toContain('A → B');
+  it('formats a successful rename', () => {
+    const op: RenameOperation = { from: 'OLD_KEY', to: 'NEW_KEY' };
+    expect(formatOperation(op)).toBe('  ✔ OLD_KEY → NEW_KEY');
   });
 
-  it('includes checkmark for renamed', () => {
-    const line = formatOperation({ oldKey: 'A', newKey: 'B' }, 'renamed');
-    expect(line).toContain('✔');
+  it('formats a skipped rename with reason', () => {
+    const op: RenameOperation = { from: 'OLD_KEY', to: 'NEW_KEY', skipped: true, reason: 'target exists' };
+    expect(formatOperation(op)).toBe('  ⚠ OLD_KEY → NEW_KEY (skipped: target exists)');
   });
 
-  it('includes warning for skipped', () => {
-    const line = formatOperation({ oldKey: 'A', newKey: 'B' }, 'skipped');
-    expect(line).toContain('⚠');
-    expect(line).toContain('already exists');
-  });
-
-  it('includes cross for notFound', () => {
-    const line = formatOperation({ oldKey: 'A', newKey: 'B' }, 'notFound');
-    expect(line).toContain('✘');
-    expect(line).toContain('not found');
-  });
-
-  it('uses the provided key names in output', () => {
-    const line = formatOperation({ oldKey: 'FOO_BAR', newKey: 'BAZ_QUX' }, 'renamed');
-    expect(line).toContain('FOO_BAR');
-    expect(line).toContain('BAZ_QUX');
+  it('formats a skipped rename without reason', () => {
+    const op: RenameOperation = { from: 'OLD_KEY', to: 'NEW_KEY', skipped: true };
+    expect(formatOperation(op)).toContain('unknown');
   });
 });
 
 describe('formatRenameResult', () => {
-  it('includes section headers', () => {
-    const output = formatRenameResult(mockResult);
-    expect(output).toContain('Renamed:');
-    expect(output).toContain('Skipped:');
-    expect(output).toContain('Not Found:');
+  it('returns message when no operations', () => {
+    const result = makeResult();
+    expect(formatRenameResult(result)).toBe('No rename operations to perform.');
   });
 
-  it('includes all operation keys', () => {
-    const output = formatRenameResult(mockResult);
-    expect(output).toContain('OLD_KEY');
-    expect(output).toContain('SKIP_KEY');
-    expect(output).toContain('GHOST_KEY');
-  });
-
-  it('omits empty sections', () => {
-    const emptyResult: RenameResult = {
-      renamed: [],
-      skipped: [],
-      notFound: [],
-      output: {},
-    };
-    const output = formatRenameResult(emptyResult);
-    expect(output).not.toContain('Renamed:');
-    expect(output).not.toContain('Skipped:');
-  });
-
-  it('returns a non-empty string for a fully populated result', () => {
-    const output = formatRenameResult(mockResult);
-    expect(output.trim().length).toBeGreaterThan(0);
+  it('formats multiple operations', () => {
+    const result = makeResult({
+      operations: [
+        { from: 'A', to: 'B' },
+        { from: 'C', to: 'D', skipped: true, reason: 'conflict' },
+      ],
+    });
+    const output = formatRenameResult(result);
+    expect(output).toContain('✔ A → B');
+    expect(output).toContain('⚠ C → D (skipped: conflict)');
   });
 });
 
 describe('formatRenameSummary', () => {
-  it('shows counts for each category', () => {
-    const output = formatRenameSummary(mockResult);
-    expect(output).toContain('Renamed : 1');
-    expect(output).toContain('Skipped : 1');
-    expect(output).toContain('Not Found: 1');
+  it('shows correct counts', () => {
+    const result = makeResult({
+      operations: [
+        { from: 'A', to: 'B' },
+        { from: 'C', to: 'D', skipped: true },
+      ],
+      skipped: ['C'],
+    });
+    const summary = formatRenameSummary(result);
+    expect(summary).toContain('Total operations : 2');
+    expect(summary).toContain('Renamed          : 1');
+    expect(summary).toContain('Skipped          : 1');
   });
 
-  it('shows zero counts when result is empty', () => {
-    const emptyResult: RenameResult = {
-      renamed: [],
+  it('handles all successful', () => {
+    const result = makeResult({
+      operations: [{ from: 'X', to: 'Y' }],
       skipped: [],
-      notFound: [],
-      output: {},
-    };
-    const output = formatRenameSummary(emptyResult);
-    expect(output).toContain('Renamed : 0');
-    expect(output).toContain('Skipped : 0');
-    expect(output).toContain('Not Found: 0');
+    });
+    const summary = formatRenameSummary(result);
+    expect(summary).toContain('Renamed          : 1');
+    expect(summary).toContain('Skipped          : 0');
+  });
+});
+
+describe('formatRenameReport', () => {
+  it('includes both operations and summary', () => {
+    const result = makeResult({
+      operations: [{ from: 'FOO', to: 'BAR' }],
+      skipped: [],
+    });
+    const report = formatRenameReport(result);
+    expect(report).toContain('Operations:');
+    expect(report).toContain('✔ FOO → BAR');
+    expect(report).toContain('Rename Summary:');
+  });
+
+  it('skips operations section when empty', () => {
+    const result = makeResult();
+    const report = formatRenameReport(result);
+    expect(report).not.toContain('Operations:');
+    expect(report).toContain('Rename Summary:');
   });
 });
