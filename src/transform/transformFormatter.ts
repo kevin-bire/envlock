@@ -36,3 +36,11 @@ export function formatTransformSummary(result: TransformResult): string {
     `Unchanged  : ${unchanged}`,
   ].join('\n');
 }
+
+/**
+ * Returns a combined report of the transform result and summary,
+ * separated by a blank line for readability.
+ */
+export function formatTransformReport(result: TransformResult): string {
+  return [formatTransformResult(result), formatTransformSummary(result)].join('\n\n');
+}
